@@ -1,0 +1,57 @@
+body {
+  font-family: Arial, Calibri, "Times New Roman", "DejaVu Sans", sans-serif !important;
+  font-size: 11pt !important;
+  line-height: 1.1 !important;
+}
+
+.document-container,
+.document-container * {
+  font-family: Arial, Calibri, "Times New Roman", "DejaVu Sans", sans-serif !important;
+  font-size: 11pt !important;
+  line-height: 1.1 !important;
+}
+
+.contract-signatures {
+  margin-top: 35mm !important;
+  border-top: 1px solid #64748b !important;
+  padding-top: 6px !important;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.contract-signatures .sig-box {
+  width: 50% !important;
+  vertical-align: bottom !important;
+}
+
+.contract-signatures .sig-title {
+  margin-bottom: 8px !important;
+}
+
+.contract-signatures [style*="margin-bottom: 40px"] {
+  margin-bottom: 10px !important;
+}
+
+.signature-space {
+  height: 24mm !important;
+  min-height: 24mm !important;
+}
+
+.employee-list-pdf,
+.employee-list-pdf * {
+  font-family: Arial, Calibri, "Times New Roman", "DejaVu Sans", sans-serif !important;
+  font-size: 11pt !important;
+  line-height: 1.1 !important;
+}
+
+.employee-list-pdf table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.employee-list-pdf th,
+.employee-list-pdf td {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  white-space: normal;
+}

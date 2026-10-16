@@ -1,0 +1,8 @@
+/vendor/
+/.env
+/.env.*
+!/.env.example
+/config/database.local.php
+/config/secrets.local.php
+/seed.php
+*.log
