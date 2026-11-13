@@ -19,6 +19,14 @@ CREATE TABLE IF NOT EXISTS `users` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Limitation des tentatives de connexion par adresse IP
+CREATE TABLE IF NOT EXISTS `login_attempts` (
+    `ip_address` VARCHAR(45) NOT NULL PRIMARY KEY,
+    `failed_attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    `window_started_at` DATETIME NOT NULL,
+    `locked_until` DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Table des employés
 CREATE TABLE IF NOT EXISTS `employees` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,

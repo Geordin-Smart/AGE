@@ -18,18 +18,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $password = trim($_POST['password'] ?? '');
 
     if (!empty($email) && !empty($password)) {
-        $stmt = $db->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch();
+        $clientIp = $_SERVER['REMOTE_ADDR'] ?? '';
 
-        if ($user && password_verify($password, $user['password'])) {
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['user_email'] = $user['email'];
-            $_SESSION['company_name'] = $user['company_name'];
-            header("Location: dashboard.php");
-            exit;
+        if (!filter_var($clientIp, FILTER_VALIDATE_IP)) {
+            $error = "La connexion est temporairement indisponible. Veuillez réessayer.";
         } else {
-            $error = "Identifiants invalides.";
+            $lockRemaining = getLoginLockRemainingSeconds($db, $clientIp);
+
+            if ($lockRemaining > 0) {
+                $error = "Trop de tentatives. Réessayez dans " . max(1, (int)ceil($lockRemaining / 60)) . " minute(s).";
+            } else {
+                $stmt = $db->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
+                $stmt->execute([$email]);
+                $user = $stmt->fetch();
+
+                if ($user && password_verify($password, $user['password'])) {
+                    clearLoginAttempts($db, $clientIp);
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['user_email'] = $user['email'];
+                    $_SESSION['company_name'] = $user['company_name'];
+                    header("Location: dashboard.php");
+                    exit;
+                }
+
+                $lockRemaining = recordFailedLogin($db, $clientIp);
+                $error = $lockRemaining > 0
+                    ? "Trois tentatives échouées. Réessayez dans " . max(1, (int)ceil($lockRemaining / 60)) . " minute(s)."
+                    : "Identifiants invalides.";
+            }
         }
     } else {
         $error = "Veuillez renseigner tous les champs.";

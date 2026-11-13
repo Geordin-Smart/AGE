@@ -33,6 +33,13 @@ function getDB() {
 }
 
 function ensureTenantSchema(PDO $db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+        ip_address VARCHAR(45) NOT NULL PRIMARY KEY,
+        failed_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+        window_started_at DATETIME NOT NULL,
+        locked_until DATETIME NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     foreach (['employees', 'contracts'] as $table) {
         $categoryColumn = $db->query("SHOW COLUMNS FROM `$table` LIKE 'categorie'")->fetch();
         if ($categoryColumn && stripos($categoryColumn['Type'], 'enum(') === 0) {
@@ -96,6 +103,69 @@ function ensureTenantSchema(PDO $db) {
     if (!in_array('fk_employee_user', $foreignKeys, true)) {
         $db->exec("ALTER TABLE employees ADD CONSTRAINT fk_employee_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE");
     }
+}
+
+function getLoginLockRemainingSeconds(PDO $db, string $ipAddress): int
+{
+    $stmt = $db->prepare("SELECT GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), locked_until))
+        FROM login_attempts WHERE ip_address = ?");
+    $stmt->execute([$ipAddress]);
+
+    return (int)$stmt->fetchColumn();
+}
+
+function recordFailedLogin(PDO $db, string $ipAddress): int
+{
+    $db->beginTransaction();
+
+    try {
+        $insert = $db->prepare("INSERT IGNORE INTO login_attempts
+            (ip_address, failed_attempts, window_started_at, locked_until)
+            VALUES (?, 0, NOW(), NULL)");
+        $insert->execute([$ipAddress]);
+
+        $stmt = $db->prepare("SELECT failed_attempts,
+                window_started_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE) AS window_expired,
+                GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), locked_until)) AS lock_remaining
+            FROM login_attempts WHERE ip_address = ? FOR UPDATE");
+        $stmt->execute([$ipAddress]);
+        $attempt = $stmt->fetch();
+
+        if ((int)$attempt['lock_remaining'] > 0) {
+            $db->commit();
+            return (int)$attempt['lock_remaining'];
+        }
+
+        $failedAttempts = (int)$attempt['window_expired'] === 1
+            ? 1
+            : min(3, (int)$attempt['failed_attempts'] + 1);
+        $update = $db->prepare("UPDATE login_attempts
+            SET failed_attempts = ?,
+                window_started_at = IF(? = 1, NOW(), window_started_at),
+                locked_until = IF(? >= 3, DATE_ADD(NOW(), INTERVAL 15 MINUTE), NULL)
+            WHERE ip_address = ?");
+        $update->execute([
+            $failedAttempts,
+            (int)$attempt['window_expired'],
+            $failedAttempts,
+            $ipAddress
+        ]);
+
+        $remaining = getLoginLockRemainingSeconds($db, $ipAddress);
+        $db->commit();
+        return $remaining;
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        throw $e;
+    }
+}
+
+function clearLoginAttempts(PDO $db, string $ipAddress): void
+{
+    $stmt = $db->prepare("DELETE FROM login_attempts WHERE ip_address = ?");
+    $stmt->execute([$ipAddress]);
 }
 
 // Fonction pour récupérer la configuration de l'entreprise gabonaise
