@@ -4,10 +4,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'age_db');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_HOST', 'appligest-database-wixpa1');
+define('DB_NAME', 'app_db');
+define('DB_USER', 'app_user');
+define('DB_PASS', 'Smart210403');
 
 function getDB() {
     static $pdo = null;
